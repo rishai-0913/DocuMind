@@ -1,7 +1,7 @@
 import axios from 'axios'
 import type { Document, HistoryTurn, SourceChunk } from '../types'
 
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+const BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replace(/\/$/, '')
 
 export const api = axios.create({ baseURL: BASE })
 

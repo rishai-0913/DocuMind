@@ -6,7 +6,7 @@
 - [Node.js](https://nodejs.org/) 18+ (for local frontend dev without Docker)
 - [Python](https://www.python.org/) 3.10+ (for local backend dev without Docker)
 - A free [Groq](https://console.groq.com) account for the LLM API key
-- A [GitHub](https://github.com) account (for Railway + Vercel auto-deploy)
+- A [GitHub](https://github.com) account (for Render + Vercel auto-deploy)
 
 ---
 
@@ -20,7 +20,7 @@
 **Free tier limits:**
 - 14,400 requests/day
 - 30 requests/minute
-- Llama 3.1 70B: 6,000 tokens/minute
+- Llama 3.3 70B: 6,000 tokens/minute
 
 ---
 
@@ -30,15 +30,19 @@ Create `backend/.env` (never commit this file):
 
 ```env
 GROQ_API_KEY=gsk_your_key_here
-APP_ENV=development
+AUTH_USERNAME=your_username
+AUTH_PASSWORD=your_password
+APP_ENV=production
 MAX_FILE_SIZE_MB=10
 CHROMA_PERSIST_DIR=./chroma_db
 ```
 
-Create `backend/.env.example` (commit this as a template):
+Create `backend/.env.example` (safe to commit as a template):
 
 ```env
 GROQ_API_KEY=your_groq_api_key_here
+AUTH_USERNAME=admin
+AUTH_PASSWORD=changeme
 APP_ENV=development
 MAX_FILE_SIZE_MB=10
 CHROMA_PERSIST_DIR=./chroma_db
@@ -64,12 +68,12 @@ Runs the full stack (backend + frontend) with a single command.
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-username/rag-document-chat.git
-cd rag-document-chat
+git clone git@github.com:your-username/DocuMind.git
+cd DocuMind
 
 # Add your .env file
 cp backend/.env.example backend/.env
-# Edit backend/.env and paste your GROQ_API_KEY
+# Edit backend/.env and fill in GROQ_API_KEY, AUTH_USERNAME, AUTH_PASSWORD
 
 # Build and start
 docker compose up --build
@@ -99,9 +103,8 @@ docker compose up --build
 
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+uv sync
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 
 # First run downloads the embedding model (~90MB, one-time)
 uvicorn main:app --reload --port 8000
@@ -115,47 +118,75 @@ npm install
 npm run dev     # Starts on http://localhost:5173
 ```
 
-> Note: The embedding model (`all-MiniLM-L6-v2`) downloads automatically on first run and caches locally. Subsequent runs are fully offline.
+> The embedding model (`BAAI/bge-small-en-v1.5`) downloads automatically on first run via FastEmbed. Subsequent runs are fully offline.
 
 ---
 
 ## Production Deployment
 
-### Backend → Railway
+### Architecture
 
-Railway provides a free tier with persistent volumes, which ChromaDB needs to keep vector data between restarts.
+```
+Browser → Vercel (React/Vite static)
+              ↓ API requests
+         Render Web Service (FastAPI)
+              ↓ persists to disk
+         Render Disk (chroma_db + uploads)
+```
 
-**Steps:**
+> **Storage note:** Render's free Web Service uses an **ephemeral filesystem** — ChromaDB data and uploaded files are wiped on every redeploy or restart. This is fine for demos. For persistent data, add a Render Disk ($0.25/GB/month) mounted at `/data`.
+
+---
+
+### Backend → Render Web Service
 
 1. Push your code to GitHub
-2. Go to [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo**
-3. Select the `rag-document-chat` repository
-4. Set the **Root Directory** to `backend`
-5. Railway auto-detects the `Dockerfile` and builds it
-6. Go to **Variables** and add:
+2. Go to [render.com](https://render.com) → **New** → **Web Service**
+3. Connect your GitHub repo and select it
+4. Configure the service:
+   - **Name:** `documind-backend`
+   - **Root Directory:** `backend`
+   - **Runtime:** `Docker` (Render auto-detects the `Dockerfile`)
+   - **Instance Type:** Free
+5. Under **Environment Variables**, add:
    ```
    GROQ_API_KEY=gsk_your_key_here
+   AUTH_USERNAME=your_username
+   AUTH_PASSWORD=your_password
    APP_ENV=production
-   CHROMA_PERSIST_DIR=/data/chroma_db
+   MAX_FILE_SIZE_MB=10
+   CHROMA_PERSIST_DIR=./chroma_db
    ```
-7. Add a **Persistent Volume**:
-   - Mount path: `/data`
-   - This keeps ChromaDB data across redeploys
-8. Railway provides a public URL like `https://your-app.up.railway.app`
+6. Click **Create Web Service**
+7. Render builds the Docker image and provides a URL like:
+   `https://documind-backend.onrender.com`
+
+**Optional — Add a Persistent Disk:**
+
+To keep uploaded files and ChromaDB data across restarts:
+1. Go to your Web Service → **Disks** → **Add Disk**
+2. Set mount path to `/data`
+3. Update the environment variable: `CHROMA_PERSIST_DIR=/data/chroma_db`
+4. Update `backend/routes/upload.py` upload dir to `/data/uploads` if needed
+
+> **Cold starts:** Free tier services spin down after 15 minutes of inactivity. The first request after idle takes ~30 seconds to wake up. This is expected on the free plan.
 
 ---
 
 ### Frontend → Vercel
 
 1. Go to [vercel.com](https://vercel.com) → **Add New Project** → import from GitHub
-2. Select the `rag-document-chat` repository
-3. Set **Root Directory** to `frontend`
-4. Add an environment variable:
+2. Select the DocuMind repository
+3. Configure:
+   - **Framework Preset:** Vite
+   - **Root Directory:** `frontend`
+4. Under **Environment Variables**, add:
    ```
-   VITE_API_URL=https://your-app.up.railway.app
+   VITE_API_URL=https://documind-backend.onrender.com
    ```
-5. Click **Deploy** — Vercel builds and publishes automatically
-6. Any push to `main` triggers a new deploy
+5. Click **Deploy**
+
+Any push to `main` triggers an automatic redeploy on both Render and Vercel.
 
 ---
 
@@ -164,23 +195,25 @@ Railway provides a free tier with persistent volumes, which ChromaDB needs to ke
 | Variable | Where | Description |
 |----------|-------|-------------|
 | `GROQ_API_KEY` | Backend | Groq LLM API key (required) |
+| `AUTH_USERNAME` | Backend | Login username |
+| `AUTH_PASSWORD` | Backend | Login password |
 | `APP_ENV` | Backend | `development` or `production` |
 | `MAX_FILE_SIZE_MB` | Backend | Max upload size (default: 10) |
 | `CHROMA_PERSIST_DIR` | Backend | Path for ChromaDB data |
-| `VITE_API_URL` | Frontend | Backend URL (Railway URL in prod) |
+| `VITE_API_URL` | Frontend | Backend URL (Render URL in prod) |
 
 ---
 
-## Docker Compose Reference
+## Docker Compose Reference (Local)
 
 ```yaml
-# docker-compose.yml (summary)
 services:
   backend:
     build: ./backend
     ports: ["8000:8000"]
     volumes:
       - chroma_data:/app/chroma_db
+      - uploads_data:/app/uploads
     env_file: ./backend/.env
 
   frontend:
@@ -192,6 +225,7 @@ services:
 
 volumes:
   chroma_data:
+  uploads_data:
 ```
 
 ---
@@ -201,27 +235,38 @@ volumes:
 After deploying, run through this checklist:
 
 - [ ] Frontend loads at the Vercel URL
-- [ ] Upload a small PDF — no errors, document appears in sidebar
-- [ ] Ask a question — response returns with source citation
-- [ ] Ask a follow-up question — conversation context is maintained
-- [ ] Delete the document — document removed from sidebar
-- [ ] Check Railway logs for any backend errors
+- [ ] Login with `AUTH_USERNAME` / `AUTH_PASSWORD` works
+- [ ] Continue as Guest — Upload page shows 1 free upload
+- [ ] Upload a small PDF — document appears in My Documents
+- [ ] Ask a question in Chat — response streams back with source citations
+- [ ] Ask a follow-up — conversation context is maintained
+- [ ] Delete a document — removed from list with loading state
+- [ ] Check Render logs for any backend errors
 
 ---
 
 ## Common Issues
 
+**Service wakes up slowly on first request**
+→ Free Render instances sleep after 15 min idle. The first request takes ~30s to cold-start. Expected behaviour on the free plan.
+
 **`GROQ_API_KEY not set` error on startup**
-→ Confirm the `.env` file exists in `backend/` and the key starts with `gsk_`.
+→ Confirm the environment variable is set in Render's dashboard under your Web Service → Environment.
 
-**ChromaDB data lost on Railway redeploy**
-→ Ensure the persistent volume is mounted at the correct path (`/data`) and `CHROMA_PERSIST_DIR=/data/chroma_db`.
+**ChromaDB data lost after redeploy**
+→ Free tier uses ephemeral storage. Add a Render Disk mounted at `/data` and set `CHROMA_PERSIST_DIR=/data/chroma_db` to persist data.
 
-**Frontend can't reach backend**
-→ Check `VITE_API_URL` is set to the Railway backend URL (no trailing slash).
+**Frontend can't reach backend (CORS error)**
+→ Check `VITE_API_URL` is set to the full Render backend URL with no trailing slash. Also verify the backend's `cors_origins` env var includes the Vercel frontend URL.
 
-**Embedding model download hangs on first run**
-→ The `all-MiniLM-L6-v2` model is ~90MB. Allow a minute on first startup. Subsequent starts are instant.
+**Add CORS origin for Vercel frontend**
+→ Set this env var on Render:
+```
+CORS_ORIGINS=https://your-app.vercel.app,http://localhost:5173
+```
+
+**Embedding model download slow on first request**
+→ `BAAI/bge-small-en-v1.5` (~90MB) downloads on first use via FastEmbed. Pre-warm by hitting the `/health` endpoint after deploy.
 
 **File upload rejected for a valid PDF**
-→ Check `MAX_FILE_SIZE_MB` — the file may exceed the 10MB limit.
+→ Check `MAX_FILE_SIZE_MB` — the file may exceed the 10MB default limit.

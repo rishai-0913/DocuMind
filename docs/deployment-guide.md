@@ -144,7 +144,7 @@ Browser → Vercel (React/Vite static)
 2. Go to [render.com](https://render.com) → **New** → **Web Service**
 3. Connect your GitHub repo and select it
 4. Configure the service:
-   - **Name:** `documind-backend`
+   - **Name:** `documind-backend` (deployed at `https://documind-6aun.onrender.com`)
    - **Root Directory:** `backend`
    - **Runtime:** `Docker` (Render auto-detects the `Dockerfile`)
    - **Instance Type:** Free
@@ -182,7 +182,7 @@ To keep uploaded files and ChromaDB data across restarts:
    - **Root Directory:** `frontend`
 4. Under **Environment Variables**, add:
    ```
-   VITE_API_URL=https://documind-backend.onrender.com
+   VITE_API_URL=https://documind-6aun.onrender.com
    ```
 5. Click **Deploy**
 
@@ -262,7 +262,7 @@ After deploying, run through this checklist:
 **Add CORS origin for Vercel frontend**
 → Set this env var on Render:
 ```
-CORS_ORIGINS=https://your-app.vercel.app,http://localhost:5173
+CORS_ORIGINS=https://docu-mind-seven-tawny.vercel.app,http://localhost:5173,http://localhost:3000
 ```
 
 **Embedding model download slow on first request**

@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     groq_api_key: str
+    hf_token: str = ""
     app_env: str = "development"
     max_file_size_mb: int = 10
     chroma_persist_dir: str = "./chroma_db"

@@ -30,3 +30,12 @@ def require_auth(
             headers={"WWW-Authenticate": "Bearer"},
         )
     return settings.auth_username
+
+
+def optional_auth(
+    creds: Annotated[Optional[HTTPAuthorizationCredentials], Depends(_scheme)],
+) -> Optional[str]:
+    """Returns username if authenticated, None for guests. Never raises 401."""
+    if creds and hmac.compare_digest(creds.credentials, _derive_token()):
+        return settings.auth_username
+    return None

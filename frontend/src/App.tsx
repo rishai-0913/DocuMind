@@ -15,11 +15,6 @@ function RequireAuth() {
   return <Outlet />
 }
 
-function RequireFullAccess() {
-  const { isGuest } = useAuth()
-  if (isGuest) return <Navigate to="/dashboard" replace />
-  return <Outlet />
-}
 
 export default function App() {
   return (
@@ -37,13 +32,9 @@ export default function App() {
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/chat/:docId" element={<ChatPage />} />
 
+              <Route path="/upload" element={<UploadPage />} />
               <Route path="/documents" element={<DocumentsPage />} />
               <Route path="/documents/:docId/view" element={<ViewerPage />} />
-
-              {/* Authenticated (non-guest) only */}
-              <Route element={<RequireFullAccess />}>
-                <Route path="/upload" element={<UploadPage />} />
-              </Route>
             </Route>
           </Route>
         </Routes>

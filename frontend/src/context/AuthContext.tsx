@@ -8,6 +8,7 @@ interface AuthState {
   username: string | null
   token: string | null
   guestRequestsUsed: number
+  guestUploadsUsed: number
 }
 
 interface AuthContextValue extends AuthState {
@@ -15,12 +16,15 @@ interface AuthContextValue extends AuthState {
   signOut: () => void
   continueAsGuest: () => void
   consumeGuestRequest: () => boolean
+  consumeGuestUpload: () => void
   isAuthenticated: boolean
   isGuest: boolean
   guestRequestsLeft: number
+  canGuestUpload: boolean
 }
 
 const GUEST_REQUEST_LIMIT = 5
+const GUEST_UPLOAD_LIMIT = 1
 const STORAGE_KEY = 'documind_auth'
 
 function load(): AuthState {
@@ -28,7 +32,7 @@ function load(): AuthState {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) return JSON.parse(raw) as AuthState
   } catch {}
-  return { mode: 'unauthenticated', username: null, token: null, guestRequestsUsed: 0 }
+  return { mode: 'unauthenticated', username: null, token: null, guestRequestsUsed: 0, guestUploadsUsed: 0 }
 }
 
 function save(state: AuthState) {
@@ -44,11 +48,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = useCallback(async (username: string, password: string) => {
     const res = await loginRequest(username, password)
-    setState({ mode: 'authenticated', username: res.username, token: res.access_token, guestRequestsUsed: 0 })
+    setState({ mode: 'authenticated', username: res.username, token: res.access_token, guestRequestsUsed: 0, guestUploadsUsed: 0 })
   }, [])
 
   const signOut = useCallback(() => {
-    setState({ mode: 'unauthenticated', username: null, token: null, guestRequestsUsed: 0 })
+    setState({ mode: 'unauthenticated', username: null, token: null, guestRequestsUsed: 0, guestUploadsUsed: 0 })
   }, [])
 
   const continueAsGuest = useCallback(() => {
@@ -62,15 +66,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return true
   }, [state])
 
+  const consumeGuestUpload = useCallback(() => {
+    setState((s) => ({ ...s, guestUploadsUsed: s.guestUploadsUsed + 1 }))
+  }, [])
+
   const value: AuthContextValue = {
     ...state,
     isAuthenticated: state.mode === 'authenticated',
     isGuest: state.mode === 'guest',
     guestRequestsLeft: GUEST_REQUEST_LIMIT - state.guestRequestsUsed,
+    canGuestUpload: state.mode !== 'guest' || state.guestUploadsUsed < GUEST_UPLOAD_LIMIT,
     signIn,
     signOut,
     continueAsGuest,
     consumeGuestRequest,
+    consumeGuestUpload,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

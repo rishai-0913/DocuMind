@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
-from auth import require_auth
+from auth import optional_auth
 from config import settings
 from models.schemas import UploadResponse
 from rag.chunker import chunk_text
@@ -23,7 +23,7 @@ _UPLOAD_DIR = Path("uploads")
 
 
 @router.post("/upload", response_model=UploadResponse, status_code=201)
-async def upload_document(file: UploadFile = File(...), _: str = Depends(require_auth)):
+async def upload_document(file: UploadFile = File(...), _: str = Depends(optional_auth)):
     # Validate MIME type
     mime = file.content_type or ""
     # Also accept by extension when content_type is generic

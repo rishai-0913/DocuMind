@@ -28,7 +28,7 @@ const TYPE_COLOR: Record<string, string> = {
 }
 
 export default function Dashboard() {
-  const { username, isGuest } = useAuth()
+  const { username, isGuest, canGuestUpload } = useAuth()
   const [docs, setDocs] = useState<Document[]>([])
 
   useEffect(() => {
@@ -109,9 +109,9 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 gap-5">
         <div className="relative">
           <Link
-            to={isGuest ? '#' : '/upload'}
-            onClick={(e) => isGuest && e.preventDefault()}
-            className={`group flex items-center gap-4 bg-indigo-600 rounded-2xl p-6 text-white shadow-lg shadow-indigo-500/20 transition-all ${isGuest ? 'opacity-50 blur-[1px] pointer-events-none select-none' : 'hover:bg-indigo-700 hover:shadow-indigo-500/40'}`}
+            to={isGuest && !canGuestUpload ? '#' : '/upload'}
+            onClick={(e) => (isGuest && !canGuestUpload) && e.preventDefault()}
+            className={`group flex items-center gap-4 bg-indigo-600 rounded-2xl p-6 text-white shadow-lg shadow-indigo-500/20 transition-all ${isGuest && !canGuestUpload ? 'opacity-50 blur-[1px] pointer-events-none select-none' : 'hover:bg-indigo-700 hover:shadow-indigo-500/40'}`}
           >
             <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
               <Upload className="w-6 h-6" />
@@ -122,7 +122,7 @@ export default function Dashboard() {
             </div>
             <ArrowRight className="w-5 h-5 opacity-60 group-hover:translate-x-1 transition-transform shrink-0" />
           </Link>
-          {isGuest && (
+          {isGuest && !canGuestUpload && (
             <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl bg-indigo-900/60 backdrop-blur-[2px]">
               <Lock className="w-5 h-5 text-white mb-1.5" />
               <p className="text-sm font-semibold text-white">Requires full access</p>

@@ -38,8 +38,9 @@ const TYPE_ICON: Record<string, { color: string }> = {
 }
 
 export default function UploadPage() {
-  const { isGuest } = useAuth()
+  const { isGuest, canGuestUpload, consumeGuestUpload } = useAuth()
   const navigate = useNavigate()
+  const guestLocked = isGuest && !canGuestUpload
   const [docs, setDocs] = useState<Document[]>([])
   const [uploadState, setUploadState] = useState<UploadState | null>(null)
   const [dragging, setDragging] = useState(false)
@@ -61,6 +62,7 @@ export default function UploadPage() {
         )
       })
       setUploadState((u) => u ? { ...u, stage: 'complete', progress: 100 } : u)
+      if (isGuest) consumeGuestUpload()
       await refresh()
       setTimeout(() => setUploadState(null), 2500)
     } catch (e: unknown) {
@@ -69,12 +71,12 @@ export default function UploadPage() {
         'Upload failed. Please try again.'
       setUploadState((u) => u ? { ...u, stage: 'error', error: msg } : u)
     }
-  }, [])
+  }, [isGuest, consumeGuestUpload])
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setDragging(false)
-    if (isGuest) return
+    if (guestLocked) return
     const file = e.dataTransfer.files[0]
     if (file) handleFile(file)
   }
@@ -93,7 +95,10 @@ export default function UploadPage() {
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
             <p className="text-sm text-amber-800">
-              <span className="font-semibold">Free Trial</span> — Browse documents and chat for up to 5 questions. Sign in to upload your own.
+              {canGuestUpload
+                ? <><span className="font-semibold">Free Trial</span> — Upload 1 document to test the full experience.</>
+                : <><span className="font-semibold">Upload limit reached</span> — Sign in to upload more documents.</>
+              }
             </p>
           </div>
           <button onClick={() => navigate('/login')} className="text-xs font-medium text-indigo-600 hover:text-indigo-700 shrink-0 ml-4">
@@ -115,12 +120,12 @@ export default function UploadPage() {
               {/* Drop zone */}
               <div className="bg-white rounded-xl border border-gray-200 p-1 shadow-sm relative">
                 <div
-                  onDragOver={(e) => { e.preventDefault(); if (!isGuest) setDragging(true) }}
+                  onDragOver={(e) => { e.preventDefault(); if (!guestLocked) setDragging(true) }}
                   onDragLeave={() => setDragging(false)}
                   onDrop={onDrop}
-                  onClick={() => { if (!isGuest) fileInputRef.current?.click() }}
+                  onClick={() => { if (!guestLocked) fileInputRef.current?.click() }}
                   className={`rounded-lg p-12 flex flex-col items-center justify-center text-center border-2 border-dashed transition-colors ${
-                    isGuest
+                    guestLocked
                       ? 'border-gray-200 bg-gray-50 cursor-default'
                       : dragging
                         ? 'border-indigo-500 bg-indigo-50 cursor-pointer'
@@ -135,24 +140,24 @@ export default function UploadPage() {
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
                   />
                   <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-transform hover:scale-110 ${
-                    isGuest ? 'bg-gray-100' : 'bg-indigo-50'
+                    guestLocked ? 'bg-gray-100' : 'bg-indigo-50'
                   }`}>
-                    <CloudUpload className={`w-8 h-8 ${isGuest ? 'text-gray-300' : 'text-indigo-500'}`} />
+                    <CloudUpload className={`w-8 h-8 ${guestLocked ? 'text-gray-300' : 'text-indigo-500'}`} />
                   </div>
-                  <h3 className={`text-lg font-bold mb-1 ${isGuest ? 'text-gray-400' : 'text-gray-800'}`}>
+                  <h3 className={`text-lg font-bold mb-1 ${guestLocked ? 'text-gray-400' : 'text-gray-800'}`}>
                     Drop your file here or browse
                   </h3>
-                  <p className={`text-sm mb-4 ${isGuest ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <p className={`text-sm mb-4 ${guestLocked ? 'text-gray-400' : 'text-gray-500'}`}>
                     Drag and drop any document to get started
                   </p>
                   <div className="flex gap-2 mb-6">
                     {['PDF', 'DOCX', 'TXT'].map((t) => (
                       <span key={t} className={`px-3 py-1 rounded text-xs font-medium ${
-                        isGuest ? 'bg-gray-100 text-gray-400' : 'bg-gray-100 text-gray-500'
+                        guestLocked ? 'bg-gray-100 text-gray-400' : 'bg-gray-100 text-gray-500'
                       }`}>{t}</span>
                     ))}
                   </div>
-                  {!isGuest && (
+                  {!guestLocked && (
                     <button
                       onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click() }}
                       className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium shadow-md shadow-indigo-500/20 hover:shadow-indigo-500/40 hover:bg-indigo-700 active:scale-95 transition-all"
@@ -162,18 +167,18 @@ export default function UploadPage() {
                   )}
                 </div>
 
-                {/* Guest lock overlay */}
-                {isGuest && (
+                {/* Guest upload limit overlay */}
+                {guestLocked && (
                   <div className="absolute inset-1 flex flex-col items-center justify-center bg-white/80 backdrop-blur-[2px] rounded-lg">
                     <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center mb-3">
                       <Lock className="w-6 h-6 text-indigo-600" />
                     </div>
-                    <p className="font-heading font-semibold text-gray-900 text-base">Sign in to Upload Documents</p>
+                    <p className="font-heading font-semibold text-gray-900 text-base">Free upload used</p>
                     <p className="text-sm text-gray-500 mt-1 mb-4 text-center max-w-xs">
-                      Create or sign in to your account to start uploading PDFs, DOCXs, and TXT files.
+                      You've used your 1 free document upload. Sign in to upload unlimited documents.
                     </p>
                     <button onClick={() => navigate('/login')} className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors">
-                      Sign In
+                      Sign In to Continue
                     </button>
                   </div>
                 )}

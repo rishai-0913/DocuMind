@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext'
 
 const nav = [
   { to: '/dashboard', icon: Home, label: 'Dashboard', guestHidden: false },
-  { to: '/upload', icon: Upload, label: 'Upload', guestHidden: true },
+  { to: '/upload', icon: Upload, label: 'Upload', guestHidden: false },
   { to: '/documents', icon: FolderOpen, label: 'My Documents', guestHidden: false },
   { to: '/chat', icon: MessageSquare, label: 'Chat', guestHidden: false },
 ]

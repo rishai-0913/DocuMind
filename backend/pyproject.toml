@@ -14,7 +14,6 @@ dependencies = [
     "langchain-community>=0.3.0",
     "langchain-chroma>=0.1.0",
     "chromadb>=0.5.0",
-    "fastembed>=0.3.0",
     "groq>=0.11.0",
     "pymupdf>=1.24.0",
     "python-docx>=1.1.0",
@@ -22,6 +21,7 @@ dependencies = [
     "pydantic>=2.7.0",
     "pydantic-settings>=2.3.0",
     "python-dotenv>=1.0.0",
+    "langchain-huggingface>=1.2.2",
 ]
 
 [dependency-groups]

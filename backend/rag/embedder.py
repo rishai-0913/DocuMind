@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
+from langchain_huggingface import HuggingFaceEndpointEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 
@@ -8,8 +8,11 @@ from config import settings
 
 
 @lru_cache(maxsize=1)
-def _embeddings() -> FastEmbedEmbeddings:
-    return FastEmbedEmbeddings(model_name=settings.embedding_model)
+def _embeddings() -> HuggingFaceEndpointEmbeddings:
+    return HuggingFaceEndpointEmbeddings(
+        huggingfacehub_api_token=settings.hf_token,
+        model=settings.embedding_model,
+    )
 
 
 def _store(doc_id: str) -> Chroma:
